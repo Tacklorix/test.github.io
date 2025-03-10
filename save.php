@@ -1,7 +1,7 @@
 <?php
 // بررسی می‌کنیم که آیا داده‌ای ارسال شده است یا خیر
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    // دریافت داده‌ها از فرم
+    // دریافت داده‌ها از فرم (بدون هیچ اعتبارسنجی)
     $name = $_POST['name'];
     $email = $_POST['email'];
 
@@ -14,7 +14,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         mkdir($folder, 0777, true);
     }
 
-    // ذخیره داده‌ها در فایل
+    // ذخیره داده‌ها در فایل (بدون هیچ محدودیتی)
     $data = "نام: $name, ایمیل: $email\n";
     file_put_contents($filename, $data, FILE_APPEND);
 
