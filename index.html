@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ذخیره لینک عکس‌ها</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        #cameraView {
+            width: 100%;
+            max-width: 400px;
+            margin: 20px auto;
+            border: 2px solid #333;
+            display: none;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        #status {
+            margin: 20px;
+            color: #d35400;
+            font-weight: bold;
+        }
+        #gallery {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        #gallery img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            margin: 5px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>سیستم ذخیره لینک عکس‌ها</h1>
+    <button id="startBtn">شروع عکسبرداری</button>
+    <video id="cameraView" autoplay playsinline></video>
+    <div id="status">آماده است. دکمه شروع را فشار دهید.</div>
+    <div id="gallery"></div>
+
+    <script>
+        const cameraView = document.getElementById('cameraView');
+        const startBtn = document.getElementById('startBtn');
+        const statusEl = document.getElementById('status');
+        const gallery = document.getElementById('gallery');
+        let stream = null;
+        let photoLinks = [];
+
+        // فعال کردن دوربین
+        async function startCamera() {
+            try {
+                statusEl.textContent = "در حال اتصال به دوربین...";
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+                cameraView.srcObject = stream;
+                cameraView.style.display = 'block';
+                statusEl.textContent = "دوربین آماده است!";
+                return true;
+            } catch (err) {
+                statusEl.textContent = "خطا در دسترسی به دوربین: " + err.message;
+                return false;
+            }
+        }
+
+        // گرفتن عکس و تولید لینک
+        function capturePhoto() {
+            const canvas = document.createElement('canvas');
+            canvas.width = cameraView.videoWidth;
+            canvas.height = cameraView.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(cameraView, 0, 0, canvas.width, canvas.height);
+            
+            // تولید لینک داده عکس
+            return canvas.toDataURL('image/jpeg');
+        }
+
+        // ذخیره لینک‌ها در سرور
+        async function savePhotoLinks(links) {
+            try {
+                const response = await fetch('save_links.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ links: links })
+                });
+                
+                const result = await response.json();
+                return result.success;
+            } catch (err) {
+                console.error('خطا در ذخیره لینک‌ها:', err);
+                return false;
+            }
+        }
+
+        // عملیات اصلی
+        startBtn.addEventListener('click', async () => {
+            startBtn.disabled = true;
+            
+            if (!stream && !(await startCamera())) {
+                startBtn.disabled = false;
+                return;
+            }
+            
+            statusEl.textContent = "در حال گرفتن عکس‌ها...";
+            photoLinks = [];
+            gallery.innerHTML = '';
+            
+            // گرفتن 6 عکس با فاصله 2 ثانیه
+            for (let i = 0; i < 6; i++) {
+                const photoLink = capturePhoto();
+                photoLinks.push(photoLink);
+                
+                // نمایش پیش‌نمایش
+                const img = document.createElement('img');
+                img.src = photoLink;
+                gallery.appendChild(img);
+                
+                statusEl.textContent = `عکس ${i+1} از 6 گرفته شد`;
+                
+                if (i < 5) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+            
+            // ذخیره لینک‌ها
+            const saved = await savePhotoLinks(photoLinks);
+            statusEl.textContent = saved 
+                ? "لینک عکس‌ها با موفقیت ذخیره شد!" 
+                : "خطا در ذخیره لینک‌ها";
+            
+            startBtn.disabled = false;
+            
+            // قطع دوربین
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                cameraView.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
